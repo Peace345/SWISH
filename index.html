@@ -85,13 +85,28 @@ let currentAlbum = {
       { file: "holdtightswishver.mp3", title: "Hold Tight", artist: "Kanye West, Lil Uzi Vert" },
       { file: "highlightsv9.mp3", title: "Highlights (v9)", artist: "Kanye West" },
       { file: "enyav4.mp3", title: "Enya (v4)", artist: "Kanye West, Theophilus London" },
+      {
+        title: "FML",
+        versions: [
+      {
+        version: "V3",
+        file: "fmlv2.mp3",
+        artist: "Kanye West, Travis Scott"
+      },
+      {
+        version: "V2",
+        file: "fmlv3.mp3",
+        artist: "Kanye West, Travis Scott"
+      }
+    ]
+  },
       { file: "fmlv2.mp3", title: "FML (v2)", artist: "Kanye West, Travis Scott" },
       { file: "fadev14.mp3", title: "Fade (v14)", artist: "Kanye West, Ty Dolla $ign, Lil Uzi Vert" },
       { file: "pressure.mp3", title: "Pressure", artist: "Kanye West, Travis Scott" },
       { file: "only.mp3", title: "Only", artist: "Kanye West, Tyga" },
-      { file: "fmlv3.mp3", title: "FML (v3)", artist: "Kanye West, Travis Scott" },
       { file: "freestyle4og.mp3", title: "Freestyle 4", artist: "Kanye West, A$AP Ferg, Big Sean" },
-      { file: "factsog.mp3", title: "Facts", artist: "Kanye West" }
+      { file: "factsog.mp3", title: "Facts", artist: "Kanye West" },
+      { file: "fatherstretchmyhandsog.mp3", title: "Father Stretch My Hands", artist: "Kanye West, Kendrick Lamar, Kid Cudi" },
   ]
 };
 
@@ -112,22 +127,105 @@ function buildSongs() {
   songsDiv.innerHTML = "";
 
   currentAlbum.songs.forEach((song, i) => {
-    const div = document.createElement("div");
-    div.className = "song";
 
-    div.innerHTML = `
-      <strong>${song.title}</strong><br>
-      <small>${song.artist || ""}</small>
-    `;
+    // SONG WITH MULTIPLE VERSIONS
+    if (song.versions) {
 
-    div.onclick = () => playSong(i);
+      const group = document.createElement("div");
+      group.className = "song";
 
-    songsDiv.appendChild(div);
+      group.innerHTML = `<strong>${song.title} ▼</strong>`;
+
+      group.onclick = () => {
+
+        // prevent duplicates
+        if (group.dataset.opened) return;
+        group.dataset.opened = true;
+
+        song.versions.forEach(version => {
+
+          const div = document.createElement("div");
+          div.className = "song";
+
+          div.innerHTML = `
+            <div style="display:flex; align-items:center;">
+              <div style="width:60px;">
+                <strong>${version.version}</strong>
+              </div>
+
+              <div style="flex:1; text-align:center;">
+                <strong>${song.title}</strong><br>
+                <small>${version.artist}</small>
+              </div>
+            </div>
+          `;
+
+          div.onclick = (e) => {
+            e.stopPropagation();
+
+            window.audio.src = version.file;
+            window.audio.play();
+
+            updateMediaSession({
+              title: song.title,
+              artist: version.artist
+            });
+          };
+
+          group.after(div);
+
+        });
+
+      };
+
+      songsDiv.appendChild(group);
+
+    }
+
+    // NORMAL SONG
+    else {
+
+      const div = document.createElement("div");
+      div.className = "song";
+
+      div.innerHTML = `
+        <strong>${song.title}</strong><br>
+        <small>${song.artist || ""}</small>
+      `;
+
+      div.onclick = () => playSong(i);
+
+      songsDiv.appendChild(div);
+
+    }
+
   });
+
 }
 
 // PLAY SONG
 function playSong(i) {
+
+  // Skip version groups
+  while (
+    i < currentAlbum.songs.length &&
+    currentAlbum.songs[i].versions
+  ) {
+    i++;
+  }
+
+  // Loop back to beginning if needed
+  if (i >= currentAlbum.songs.length) {
+    i = 0;
+
+    while (
+      i < currentAlbum.songs.length &&
+      currentAlbum.songs[i].versions
+    ) {
+      i++;
+    }
+  }
+
   currentIndex = i;
 
   const song = currentAlbum.songs[i];
@@ -204,20 +302,40 @@ window.addEventListener("DOMContentLoaded", () => {
   const audio = document.getElementById("audio");
 
   audio.addEventListener("ended", () => {
-    if (!currentAlbum) return;
+  if (!currentAlbum) return;
 
-    const nextIndex = currentIndex + 1;
+  const list = getPlayableSongs();
 
-    if (nextIndex < currentAlbum.songs.length) {
-      playSong(nextIndex);
-    } else {
-      playSong(0);
-    }
-  });
+  const currentSong = currentAlbum.songs[currentIndex];
+  const nextIndex = list.indexOf(currentSong) + 1;
+
+  if (nextIndex < list.length) {
+    const nextSong = list[nextIndex];
+
+    const realIndex = currentAlbum.songs.indexOf(nextSong);
+    playSong(realIndex);
+  } else {
+    playSong(currentAlbum.songs.indexOf(list[0]));
+  }
+});
 
   // expose audio globally so playSong can use it safely
   window.audio = audio;
 });
+
+function getPlayableSongs() {
+  const list = [];
+
+  currentAlbum.songs.forEach(song => {
+    if (song.versions) {
+      // skip the container entirely
+      return;
+    }
+    list.push(song);
+  });
+
+  return list;
+}
   
 </script>
 
